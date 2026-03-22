@@ -1,5 +1,6 @@
 CREATE TABLE workout_sessions (
   id SERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL DEFAULT 'default',
   phase INTEGER NOT NULL,
   session INTEGER NOT NULL,
   started_at TIMESTAMPTZ,
@@ -19,4 +20,4 @@ CREATE TABLE set_logs (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE UNIQUE INDEX idx_phase_session ON workout_sessions(phase, session);
+CREATE UNIQUE INDEX idx_user_phase_session ON workout_sessions(user_id, phase, session);

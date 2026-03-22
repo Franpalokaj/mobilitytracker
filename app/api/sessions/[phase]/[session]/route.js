@@ -5,11 +5,12 @@ export async function GET(request, { params }) {
   const { phase, session } = await params;
   const p = parseInt(phase);
   const s = parseInt(session);
+  const userId = request.nextUrl.searchParams.get("u") || "default";
 
   const sessions = await sql`
     SELECT id, started_at, ended_at, completed
     FROM workout_sessions
-    WHERE phase = ${p} AND session = ${s}
+    WHERE user_id = ${userId} AND phase = ${p} AND session = ${s}
   `;
 
   if (sessions.length === 0) {

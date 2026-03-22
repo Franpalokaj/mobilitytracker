@@ -5,11 +5,12 @@ export async function POST(request, { params }) {
   const { phase, session } = await params;
   const p = parseInt(phase);
   const s = parseInt(session);
+  const userId = request.nextUrl.searchParams.get("u") || "default";
 
   const rows = await sql`
     UPDATE workout_sessions
     SET completed = false, ended_at = NULL
-    WHERE phase = ${p} AND session = ${s}
+    WHERE user_id = ${userId} AND phase = ${p} AND session = ${s}
     RETURNING id, started_at
   `;
 

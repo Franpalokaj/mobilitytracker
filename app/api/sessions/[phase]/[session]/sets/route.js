@@ -5,13 +5,14 @@ export async function POST(request, { params }) {
   const { phase, session } = await params;
   const p = parseInt(phase);
   const s = parseInt(session);
+  const userId = request.nextUrl.searchParams.get("u") || "default";
   const { sets } = await request.json();
 
   // Ensure session exists
   const sessionRows = await sql`
-    INSERT INTO workout_sessions (phase, session)
-    VALUES (${p}, ${s})
-    ON CONFLICT (phase, session) DO UPDATE SET phase = ${p}
+    INSERT INTO workout_sessions (user_id, phase, session)
+    VALUES (${userId}, ${p}, ${s})
+    ON CONFLICT (user_id, phase, session) DO UPDATE SET phase = ${p}
     RETURNING id
   `;
   const sessionId = sessionRows[0].id;
@@ -22,7 +23,6 @@ export async function POST(request, { params }) {
   // Insert new ones (only non-empty)
   const filtered = sets.filter((s) => s.reps_or_time);
   if (filtered.length > 0) {
-    // Build batch insert using unnest for efficiency
     const exerciseNames = filtered.map((s) => s.exercise_name);
     const setNumbers = filtered.map((s) => s.set_number);
     const repsOrTimes = filtered.map((s) => s.reps_or_time || null);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 const PHASES = [
   {
@@ -242,6 +242,13 @@ export default function App() {
   const saveTimerRef = useRef(null);
   const lastSavedRef = useRef(null);
 
+  // User scoping: ?u=xxx gives each person their own data
+  const userId = useMemo(() => {
+    if (typeof window === "undefined") return "default";
+    return new URLSearchParams(window.location.search).get("u") || "default";
+  }, []);
+  const uq = userId === "default" ? "" : `?u=${encodeURIComponent(userId)}`;
+
   const [allData, setAllData] = useState({});
   const [completedSessions, setCompletedSessions] = useState(new Set());
 
@@ -266,7 +273,7 @@ export default function App() {
 
   // --- API: Load all sessions on mount ---
   useEffect(() => {
-    fetch("/api/sessions")
+    fetch(`/api/sessions${uq}`)
       .then((r) => r.json())
       .then((data) => {
         const completed = new Set();
@@ -280,7 +287,7 @@ export default function App() {
 
   // --- API: Load set data when phase/session changes ---
   useEffect(() => {
-    fetch(`/api/sessions/${phaseIdx}/${sessionNum}`)
+    fetch(`/api/sessions/${phaseIdx}/${sessionNum}${uq}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.sets && data.sets.length > 0) {
@@ -346,7 +353,7 @@ export default function App() {
       });
 
       setSaving(true);
-      fetch(`/api/sessions/${phaseIdx}/${sessionNum}/sets`, {
+      fetch(`/api/sessions/${phaseIdx}/${sessionNum}/sets${uq}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sets }),
@@ -379,18 +386,44 @@ export default function App() {
     setWorkoutFinished(false);
     setElapsed(0);
     timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
-    fetch(`/api/sessions/${phaseIdx}/${sessionNum}/start`, { method: "POST" }).catch(() => {});
+    fetch(`/api/sessions/${phaseIdx}/${sessionNum}/start${uq}`, { method: "POST" }).catch(() => {});
   }
 
   function endWorkout() {
     clearInterval(timerRef.current);
     setWorkoutFinished(true);
     setCompletedSessions((prev) => new Set([...prev, dataKey]));
-    fetch(`/api/sessions/${phaseIdx}/${sessionNum}/end`, { method: "POST" }).catch(() => {});
+    fetch(`/api/sessions/${phaseIdx}/${sessionNum}/end${uq}`, { method: "POST" }).catch(() => {});
     // Force-save any pending data immediately
     clearTimeout(saveTimerRef.current);
     const currentData = allData[dataKey];
     if (currentData) saveSets(currentData);
+  }
+
+  function clearWorkoutData() {
+    // Clear local state for this session
+    setAllData((prev) => {
+      const next = { ...prev };
+      delete next[dataKey];
+      return next;
+    });
+    setCompletedSessions((prev) => {
+      const next = new Set(prev);
+      next.delete(dataKey);
+      return next;
+    });
+    setWorkoutStarted(false);
+    setWorkoutFinished(false);
+    setElapsed(0);
+    clearInterval(timerRef.current);
+    lastSavedRef.current = null;
+    // Clear in DB: delete sets + reset session
+    fetch(`/api/sessions/${phaseIdx}/${sessionNum}/sets${uq}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sets: [] }),
+    }).catch(() => {});
+    fetch(`/api/sessions/${phaseIdx}/${sessionNum}/reopen${uq}`, { method: "POST" }).catch(() => {});
   }
 
   function reopenWorkout() {
@@ -402,7 +435,7 @@ export default function App() {
       next.delete(dataKey);
       return next;
     });
-    fetch(`/api/sessions/${phaseIdx}/${sessionNum}/reopen`, { method: "POST" }).catch(() => {});
+    fetch(`/api/sessions/${phaseIdx}/${sessionNum}/reopen${uq}`, { method: "POST" }).catch(() => {});
   }
 
   function resetWorkout() {
@@ -558,6 +591,10 @@ export default function App() {
                   Next Session →
                 </button>
               </div>
+              <button onClick={() => { if (confirm("Reset this session? All logged sets will be cleared.")) clearWorkoutData(); }}
+                style={{ display: "block", width: "100%", background: "none", border: "none", fontSize: 12, color: "#c0392b", cursor: "pointer", padding: "6px 0 0", fontFamily: "inherit", opacity: 0.6 }}>
+                Reset Session
+              </button>
             </div>
           )}
           {phase.exercises.map((ex, exIdx) => (
