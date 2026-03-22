@@ -393,6 +393,18 @@ export default function App() {
     if (currentData) saveSets(currentData);
   }
 
+  function reopenWorkout() {
+    setWorkoutFinished(false);
+    // Resume timer from where it was
+    timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+    setCompletedSessions((prev) => {
+      const next = new Set(prev);
+      next.delete(dataKey);
+      return next;
+    });
+    fetch(`/api/sessions/${phaseIdx}/${sessionNum}/reopen`, { method: "POST" }).catch(() => {});
+  }
+
   function resetWorkout() {
     setWorkoutStarted(false);
     setWorkoutFinished(false);
@@ -536,6 +548,10 @@ export default function App() {
                 <button onClick={goPrev} disabled={!canGoPrev}
                   style={{ width: 46, height: 42, border: "none", borderRadius: 10, background: canGoPrev ? "#888" : "#e0e0e0", color: canGoPrev ? "#fff" : "#bbb", fontSize: 18, cursor: canGoPrev ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: "inherit" }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                </button>
+                <button onClick={reopenWorkout}
+                  style={{ height: 42, padding: "0 14px", border: "1px solid #ccc", borderRadius: 10, background: "#fff", color: "#666", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                  ✏️ Edit
                 </button>
                 <button onClick={goNext} disabled={!canGoNext}
                   style={{ flex: 1, height: 42, border: "none", borderRadius: 10, background: canGoNext ? "#4A5D4A" : "#f0f0f0", color: canGoNext ? "#fff" : "#ccc", fontSize: 14, fontWeight: 600, cursor: canGoNext ? "pointer" : "default", fontFamily: "inherit" }}>
